@@ -11,7 +11,7 @@ Civic OS is a civic engagement platform built on the [Internet Computer (ICP)](h
 
 ---
 
-## Running with Docker
+## Running with Docker (local development)
 
 The easiest way to run Civic OS locally is with Docker. No ICP or Node.js tooling is required.
 
@@ -35,14 +35,63 @@ Then open **http://localhost:8080** in your browser.
 docker compose down
 ```
 
-### Pulling the latest published image
+---
 
-After every push to `main`, GitHub Actions automatically builds and publishes the image to the GitHub Container Registry. Pull the latest image with:
+## Deploying to a public domain (civic-os-opensourcism.cloud)
+
+Use `docker-compose.prod.yml` on your server. It publishes the app on ports 80 and 443, and manages Let's Encrypt TLS certificates automatically via certbot.
+
+### Prerequisites
+
+- A Linux server (VPS) with [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- The domain's **A record** pointed to the server's public IP address
+- Ports **80** and **443** open in the server's firewall
+
+### First-time deployment
 
 ```bash
-docker pull ghcr.io/teklemariama/the-civic-os:latest
-docker run -p 8080:80 ghcr.io/teklemariama/the-civic-os:latest
+# 1. Clone the repo (or pull the latest code)
+git clone https://github.com/TeklemariamA/The-Civic-Os.git
+cd The-Civic-Os
+
+# 2. Pull the latest pre-built image
+docker compose -f docker-compose.prod.yml pull
+
+# 3. Start in HTTP-only mode (needed for the cert challenge)
+docker compose -f docker-compose.prod.yml up -d
+
+# 4. Obtain the Let's Encrypt certificate
+docker compose -f docker-compose.prod.yml exec certbot certbot certonly \
+  --webroot --webroot-path /var/www/certbot \
+  -d civic-os-opensourcism.cloud \
+  -d www.civic-os-opensourcism.cloud \
+  --email your@email.com --agree-tos --no-eff-email
+
+# 5. Enable HTTPS: open docker-compose.prod.yml and uncomment the two
+#    volume lines under `frontend` that reference nginx/prod.conf and
+#    letsencrypt, then restart the frontend container:
+docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
 ```
+
+The app is now live at **https://civic-os-opensourcism.cloud**.
+
+Certificates renew automatically — certbot checks every 12 hours and renews when fewer than 30 days remain.
+
+### Pulling updates
+
+Every push to `main` builds and publishes a new image to the GitHub Container Registry. To deploy the latest version on your server:
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
+```
+
+### Nginx configuration files
+
+| File | Purpose |
+|---|---|
+| `nginx/default.conf` | Baked into the Docker image. HTTP on port 80, SPA routing, gzip, security headers. Used for local dev and for the initial HTTP-only phase on the server. |
+| `nginx/prod.conf` | Mounted at runtime in production. Adds HTTPS (port 443) with Let's Encrypt certs, HSTS, and HTTP→HTTPS redirect. Activate by uncommenting the volume lines in `docker-compose.prod.yml`. |
 
 ---
 
@@ -93,4 +142,3 @@ dfx deploy --network ic
 ```
 
 See [BUILD.md](BUILD.md) for full instructions including obtaining cycles.
-

@@ -1,3 +1,7 @@
+# ── Civic OS – local development ───────────────────────────────────────────────
+#
+# Builds the Docker image from source and serves it at http://localhost:8080.
+# For production deployment on civic-os-opensourcism.cloud use docker-compose.prod.yml.
 services:
   frontend:
     build:

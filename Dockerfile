@@ -26,17 +26,18 @@ FROM nginx:1.27-alpine
 # Copy the compiled static assets from the build stage.
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Enable SPA routing: unknown paths fall back to index.html so React Router
-# can handle client-side navigation instead of getting a 404 from nginx.
-RUN printf 'server {\n\
-    listen 80;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-    location / {\n\
-        try_files $uri $uri/ /index.html;\n\
-    }\n\
-}\n' > /etc/nginx/conf.d/default.conf
+# Copy the nginx site configuration.
+# nginx/default.conf enables SPA routing, gzip, security headers, and HTTPS.
+# For local development (docker-compose.yml) the container is accessed via
+# http://localhost:8080 which is perfectly fine with this config.
+# For production (docker-compose.prod.yml) port 80 and 443 are exposed and
+# SSL certificates are mounted from the host by the certbot service.
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+# Validate the nginx configuration before starting (fails fast on typos).
+RUN nginx -t
+
+EXPOSE 80 443
 
 CMD ["nginx", "-g", "daemon off;"]
+
