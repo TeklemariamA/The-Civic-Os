@@ -10,3 +10,5 @@ target/
 .idea
 .mops
 .env
+backend/__pycache__/
+frontend/dist/

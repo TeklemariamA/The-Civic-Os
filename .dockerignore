@@ -1,0 +1,30 @@
+# Git internals
+.git/
+.gitignore
+
+# Dependencies (re-installed inside the container)
+node_modules/
+frontend/node_modules/
+
+# Build outputs (created fresh inside the container)
+dist/
+frontend/dist/
+build/
+
+# ICP / DFX local state
+.dfx/
+.mops/
+*.old.did
+.env
+
+# Dev tooling
+.vscode/
+.idea/
+.DS_Store
+_MACOSX
+
+# Dev Container config (not needed in the image)
+.devcontainer/
+
+# Rust artefacts
+target/

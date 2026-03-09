@@ -1,6 +1,7 @@
 {
   "name": "ICP Dev Environment",
   "image": "ghcr.io/dfinity/icp-dev-env-slim:22",
+  "postCreateCommand": "npm install",
   "forwardPorts": [4943, 5173],
   "portsAttributes": {
     "4943": {

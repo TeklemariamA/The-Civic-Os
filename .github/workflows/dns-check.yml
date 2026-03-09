@@ -1,0 +1,53 @@
+name: DNS Configuration Check
+
+# Runs on a daily schedule to catch unexpected DNS drift, and can be
+# triggered manually before a deployment to confirm propagation is complete.
+on:
+  schedule:
+    # 06:00 UTC every day
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      fail_on_error:
+        description: 'Fail the workflow if DNS is not correctly configured'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  dns-check:
+    name: Verify DNS records for civic-os-opensourcism.cloud
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dnsutils
+        run: sudo apt-get install -y --no-install-recommends dnsutils
+
+      - name: Run DNS check script
+        id: dns_check
+        # The script exits non-zero when DNS is misconfigured.
+        # We capture the exit code so we can show the full output either way
+        # before deciding whether to mark the job as failed.
+        run: |
+          set +e
+          bash scripts/check-dns.sh
+          echo "dns_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Fail workflow if DNS is misconfigured
+        if: >
+          steps.dns_check.outputs.dns_exit != '0' &&
+          (github.event_name == 'schedule' ||
+           github.event.inputs.fail_on_error == 'true')
+        run: |
+          echo "::error::DNS check failed -- A records for civic-os-opensourcism.cloud" \
+               "do not resolve to 72.61.96.166. Set them in Hostinger hPanel -> Domains -> DNS / Nameservers."
+          exit 1

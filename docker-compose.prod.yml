@@ -1,0 +1,75 @@
+# ── Civic OS – production deployment ───────────────────────────────────────────
+#
+# Deploys the app at https://civic-os-opensourcism.cloud with automatic
+# Let's Encrypt TLS certificates via certbot.
+#
+# Server: Hostinger KVM 1 VPS — IP 72.61.96.166
+#
+# ── FIRST-TIME SETUP (run once on the server) ──────────────────────────────────
+#
+# Step 1 – Ensure the domain's A record points to 72.61.96.166 (set in Hostinger
+#   hPanel → Domains → civic-os-opensourcism.cloud → DNS / Nameservers), then
+#   verify propagation:
+#   dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return 72.61.96.166
+#
+# Step 2 – Pull the latest image and start the stack (HTTP-only initially):
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Step 3 – Obtain the Let's Encrypt certificate via the webroot method:
+#   docker compose -f docker-compose.prod.yml exec certbot certbot certonly \
+#     --webroot --webroot-path /var/www/certbot \
+#     -d civic-os-opensourcism.cloud \
+#     -d www.civic-os-opensourcism.cloud \
+#     --email your@email.com --agree-tos --no-eff-email
+#
+# Step 4 – Restart the frontend container to activate HTTPS:
+#   docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
+#
+#   The container's entrypoint detects the new certificate and automatically
+#   switches nginx from HTTP-only mode to full HTTPS (prod.conf).
+#   No manual file editing is required.
+#
+# ── SUBSEQUENT UPDATES ─────────────────────────────────────────────────────────
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
+#
+# Certificates renew automatically (the certbot service polls every 12 hours).
+
+services:
+  frontend:
+    image: ghcr.io/teklemariama/the-civic-os:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Let's Encrypt certificates.
+      # The container entrypoint checks for the certificate at startup and
+      # automatically activates the HTTPS nginx config (prod.conf) when found.
+      # Mount this volume from day 1 — it is empty until certbot runs, and
+      # nginx runs in HTTP-only mode until the cert appears.
+      - letsencrypt:/etc/letsencrypt:ro
+      # Shared web-root for ACME challenges (certbot writes; nginx reads).
+      - certbot-webroot:/var/www/certbot:ro
+    depends_on:
+      - certbot
+
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    # Check for renewal every 12 hours; certbot only contacts Let's Encrypt
+    # when fewer than 30 days remain on the certificate.
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot --webroot-path /var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
+
+volumes:
+  letsencrypt:
+  certbot-webroot:

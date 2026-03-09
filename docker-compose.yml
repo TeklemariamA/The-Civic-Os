@@ -1,0 +1,20 @@
+# ── Civic OS – local development ───────────────────────────────────────────────
+#
+# Builds both services from source and serves the app at http://localhost:8080.
+# For production deployment on civic-os-opensourcism.cloud use docker-compose.prod.yml.
+services:
+  backend:
+    build:
+      context: backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
