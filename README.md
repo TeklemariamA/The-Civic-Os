@@ -4,10 +4,40 @@ Civic OS is a civic engagement platform built on the [Internet Computer (ICP)](h
 
 ## Features
 
+### Governance
 - **Dashboard** – activity overview, upcoming votes, and platform stats
 - **Proposals** – submit, filter, and track civic proposals
 - **Voting** – cast votes on open polls and view results
+
+### Community
 - **Users** – manage community members and their roles
+- **Bounties** – post and claim civic tasks with time-escalating rewards
+- **Justice** – decentralised dispute resolution with merit-weighted jurors
+
+### Privacy & Identity
+- **ZK-Audit** – zero-knowledge public audit log: verify *what* happened without revealing *who* did it
+- **Consent Forms** – review and digitally sign required governance consent agreements
+- **Sovereign Identity** – issue and manage decentralised citizen identity credentials (DIDs)
+
+---
+
+## When will the app be live on the web?
+
+> **Short answer:** approximately **5–10 minutes** after a pull request is merged
+> to `main` — if DNS is already configured. A brand-new domain will also require
+> DNS propagation, which takes **1–4 hours** for most of the world (worst-case 48 h).
+
+| Step | What happens | Typical time |
+|------|-------------|-------------|
+| Merge PR to `main` | GitHub Actions builds & pushes the Docker image to GHCR | **2–4 min** |
+| Server pulls the new image | `docker compose pull` downloads updated layers | ~30 s – 2 min |
+| Container restarts | nginx starts serving the new build | ~5 s |
+| **DNS propagation** *(first deploy only)* | A record spreads to resolvers worldwide | **1–4 h** (up to 48 h worst-case) |
+| TLS certificate *(first deploy only)* | Let's Encrypt / certbot issues the HTTPS cert | < 30 s |
+
+For the full deployment walkthrough — including how to point your domain, how
+DNS propagation works, how to check it, and how to speed it up — see
+**[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ---
 
