@@ -41,6 +41,46 @@ DNS propagation works, how to check it, and how to speed it up — see
 
 ---
 
+## Installing Civic OS as an app (PWA)
+
+Civic OS is a **Progressive Web App (PWA)**. Once the app is open in a supported
+browser, you can install it as a native-like app on any device — no app store required.
+
+### Desktop (Chrome, Edge, Brave)
+
+1. Visit **https://civic-os-opensourcism.cloud** in your browser.
+2. Look for the **install icon** (⊕ or a computer with a down-arrow) in the address bar, then click **Install**.
+3. Civic OS opens in its own window, appears in your taskbar / dock, and works offline.
+
+### Android
+
+1. Open **https://civic-os-opensourcism.cloud** in Chrome.
+2. Tap the **three-dot menu → Add to Home Screen**.
+3. Tap **Install**. The app icon appears on your home screen.
+
+### iOS / iPadOS (Safari)
+
+1. Open **https://civic-os-opensourcism.cloud** in Safari.
+2. Tap the **Share button** (□↑) → **Add to Home Screen**.
+3. Tap **Add**. The Civic OS icon appears on your home screen.
+
+### What you get after installing
+
+| Feature | Detail |
+|---------|--------|
+| **Offline access** | The app shell and all static assets are cached by the service worker — pages load instantly even without a network |
+| **Background sync** | Service worker automatically picks up the latest version in the background; you get updates on the next app launch |
+| **Native feel** | Runs in a standalone window (no browser chrome), with its own taskbar / dock / home-screen icon |
+| **Shortcuts** | Right-click the taskbar icon (desktop) or long-press (Android) to jump directly to Dashboard, Proposals, or Voting |
+| **No app store** | Install directly from the browser — no account, no review process, instant updates |
+
+> **HTTPS required:** PWA installation only works over a secure HTTPS connection.
+> The production site at `https://civic-os-opensourcism.cloud` satisfies this.
+> For local testing with Docker, use `http://localhost:8080` — Chrome will still
+> allow installation on `localhost` as a special exception.
+
+---
+
 ## Running with Docker (local development)
 
 The easiest way to run Civic OS locally is with Docker. No ICP or Node.js tooling is required.
