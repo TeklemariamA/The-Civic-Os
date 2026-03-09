@@ -127,6 +127,24 @@ domain name `civic-os-opensourcism.cloud`.  nginx binds to all interfaces on the
 VPS (`0.0.0.0:80` / `0.0.0.0:443`), so the A records above are the only place the
 IP needs to be configured.
 
+### Verifying DNS configuration
+
+A pre-flight script is included to confirm that the A records and nameservers are
+correct **before** you deploy:
+
+```bash
+# Run on the VPS or any machine with network access:
+bash scripts/check-dns.sh
+```
+
+The script queries Google (8.8.8.8), Cloudflare (1.1.1.1), and Quad9 (9.9.9.9)
+for each domain and exits non-zero if any resolver returns an unexpected IP.
+
+A GitHub Actions workflow (`.github/workflows/dns-check.yml`) also runs this
+check every day at 06:00 UTC and can be triggered manually from the
+[Actions tab](https://github.com/TeklemariamA/The-Civic-Os/actions/workflows/dns-check.yml)
+before any deployment.
+
 ### What is domain propagation?
 
 When you create or change an A record, DNS resolvers around the world **cache** the
@@ -281,8 +299,11 @@ openssl s_client -connect civic-os-opensourcism.cloud:443 -servername civic-os-o
 git clone https://github.com/TeklemariamA/The-Civic-Os.git
 cd The-Civic-Os
 
-# 2. Verify DNS A record points to 72.61.96.166 (set in Hostinger hPanel → DNS):
-dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return 72.61.96.166
+# 2. Verify DNS is correctly configured (all A records resolve to 72.61.96.166):
+bash scripts/check-dns.sh
+#    All checks must pass before proceeding.  If any FAIL, set the A records
+#    in Hostinger hPanel → Domains → DNS / Nameservers and wait 5–15 minutes,
+#    then re-run the check.
 
 # 3. Pull the latest image from GHCR
 docker compose -f docker-compose.prod.yml pull
