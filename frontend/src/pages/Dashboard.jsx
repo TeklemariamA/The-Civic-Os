@@ -1,28 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../api';
 
-const stats = [
-  { label: 'Active Proposals', value: '12', change: '+3 this week', color: 'bg-blue-50 border-blue-200', icon: '📋' },
-  { label: 'Open Votes', value: '5', change: '2 closing soon', color: 'bg-yellow-50 border-yellow-200', icon: '🗳️' },
-  { label: 'Registered Users', value: '1,284', change: '+47 this month', color: 'bg-green-50 border-green-200', icon: '👥' },
-  { label: 'Passed Measures', value: '89', change: 'All time', color: 'bg-purple-50 border-purple-200', icon: '✅' },
-];
-
-const recentActivity = [
-  { type: 'proposal', text: 'New proposal submitted: "Green Energy Initiative"', time: '2 hours ago', icon: '📋' },
-  { type: 'vote', text: 'Vote started: "Community Park Renovation"', time: '5 hours ago', icon: '🗳️' },
-  { type: 'user', text: 'New member joined: Sarah Mitchell', time: '1 day ago', icon: '👤' },
-  { type: 'passed', text: 'Proposal passed: "Public Library Expansion"', time: '2 days ago', icon: '✅' },
-  { type: 'vote', text: 'Vote closed: "Transportation Budget 2025"', time: '3 days ago', icon: '🏁' },
-];
-
-const upcomingVotes = [
-  { title: 'Community Park Renovation', closes: 'March 12, 2026', participation: 62 },
-  { title: 'Downtown Revitalization Plan', closes: 'March 15, 2026', participation: 38 },
-  { title: 'School Infrastructure Bond', closes: 'March 20, 2026', participation: 74 },
+const STAT_META = [
+  { key: 'active_proposals', label: 'Active Proposals', color: 'bg-blue-50 border-blue-200',    icon: '📋' },
+  { key: 'open_votes',       label: 'Open Votes',       color: 'bg-yellow-50 border-yellow-200', icon: '🗳️' },
+  { key: 'registered_users', label: 'Registered Users', color: 'bg-green-50 border-green-200',   icon: '👥' },
+  { key: 'passed_measures',  label: 'Passed Measures',  color: 'bg-purple-50 border-purple-200', icon: '✅' },
 ];
 
 export default function Dashboard() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  useEffect(() => {
+    api.getDashboard()
+      .then(setData)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div role="status" className="text-gray-500 py-8 text-center">Loading dashboard…</div>;
+  if (error)   return <div role="alert" className="text-red-500 py-8 text-center">Error: {error}</div>;
+
+  const { stats, recent_activity, upcoming_votes } = data;
+
   return (
     <div>
       <div className="mb-6">
@@ -32,14 +35,13 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((s) => (
-          <div key={s.label} className={`rounded-xl border p-5 ${s.color}`}>
+        {STAT_META.map(({ key, label, color, icon }) => (
+          <div key={key} className={`rounded-xl border p-5 ${color}`}>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-600">{s.label}</p>
-              <span className="text-2xl">{s.icon}</span>
+              <p className="text-sm font-medium text-gray-600">{label}</p>
+              <span className="text-2xl">{icon}</span>
             </div>
-            <p className="mt-2 text-3xl font-bold text-gray-800">{s.value}</p>
-            <p className="mt-1 text-xs text-gray-500">{s.change}</p>
+            <p className="mt-2 text-3xl font-bold text-gray-800">{stats[key]}</p>
           </div>
         ))}
       </div>
@@ -52,7 +54,7 @@ export default function Dashboard() {
               <h3 className="font-semibold text-gray-800">Recent Activity</h3>
             </div>
             <ul className="divide-y">
-              {recentActivity.map((item, i) => (
+              {recent_activity.map((item, i) => (
                 <li key={i} className="flex items-start gap-3 px-6 py-4">
                   <span className="mt-0.5 text-xl">{item.icon}</span>
                   <div className="flex-1">
@@ -73,7 +75,7 @@ export default function Dashboard() {
               <Link to="/voting" className="text-xs text-indigo-600 hover:underline">View all</Link>
             </div>
             <ul className="divide-y px-6">
-              {upcomingVotes.map((vote, i) => (
+              {upcoming_votes.map((vote, i) => (
                 <li key={i} className="py-4">
                   <p className="text-sm font-medium text-gray-700">{vote.title}</p>
                   <p className="text-xs text-gray-400">Closes {vote.closes}</p>

@@ -1,33 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../api';
 
 const ROLE_COLORS = {
   Administrator: 'bg-purple-100 text-purple-800',
-  Moderator: 'bg-blue-100 text-blue-800',
-  Member: 'bg-green-100 text-green-800',
-  Observer: 'bg-gray-100 text-gray-600',
+  Moderator:     'bg-blue-100 text-blue-800',
+  Member:        'bg-green-100 text-green-800',
+  Observer:      'bg-gray-100 text-gray-600',
 };
 
-const initialUsers = [
-  { id: 1, name: 'Alice Johnson', email: 'alice@example.com', role: 'Administrator', joined: 'Jan 10, 2025', proposals: 8, votes: 42, active: true },
-  { id: 2, name: 'Bob Martinez', email: 'bob@example.com', role: 'Moderator', joined: 'Feb 3, 2025', proposals: 5, votes: 37, active: true },
-  { id: 3, name: 'Carol Wang', email: 'carol@example.com', role: 'Member', joined: 'Mar 15, 2025', proposals: 3, votes: 29, active: true },
-  { id: 4, name: 'David Kim', email: 'david@example.com', role: 'Member', joined: 'Apr 22, 2025', proposals: 1, votes: 14, active: false },
-  { id: 5, name: 'Eva Patel', email: 'eva@example.com', role: 'Moderator', joined: 'May 8, 2025', proposals: 6, votes: 51, active: true },
-  { id: 6, name: 'Frank Nguyen', email: 'frank@example.com', role: 'Observer', joined: 'Jun 30, 2025', proposals: 0, votes: 8, active: true },
-  { id: 7, name: 'Grace Lee', email: 'grace@example.com', role: 'Member', joined: 'Jul 17, 2025', proposals: 2, votes: 22, active: true },
-  { id: 8, name: 'Henry Brown', email: 'henry@example.com', role: 'Member', joined: 'Aug 5, 2025', proposals: 0, votes: 5, active: false },
-];
-
-const roles = ['All', 'Administrator', 'Moderator', 'Member', 'Observer'];
+const ROLES = ['All', 'Administrator', 'Moderator', 'Member', 'Observer'];
 
 export default function Users() {
-  const [users, setUsers] = useState(initialUsers);
-  const [search, setSearch] = useState('');
-  const [filterRole, setFilterRole] = useState('All');
-  const [showInvite, setShowInvite] = useState(false);
+  const [users,       setUsers]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [search,      setSearch]      = useState('');
+  const [filterRole,  setFilterRole]  = useState('All');
+  const [showInvite,  setShowInvite]  = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('Member');
-  const [inviteSent, setInviteSent] = useState(false);
+  const [inviteRole,  setInviteRole]  = useState('Member');
+  const [inviteSent,  setInviteSent]  = useState(false);
+
+  useEffect(() => {
+    api.getUsers()
+      .then(setUsers)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = users.filter((u) => {
     const matchesSearch =
@@ -49,11 +48,17 @@ export default function Users() {
     }, 2000);
   };
 
-  const toggleActive = (id) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u))
-    );
+  const toggleActive = async (id) => {
+    try {
+      const updated = await api.toggleUser(id);
+      setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+    } catch (err) {
+      alert(`Failed to update user: ${err.message}`);
+    }
   };
+
+  if (loading) return <div role="status" className="text-gray-500 py-8 text-center">Loading users…</div>;
+  if (error)   return <div role="alert" className="text-red-500 py-8 text-center">Error: {error}</div>;
 
   return (
     <div>
@@ -137,7 +142,7 @@ export default function Users() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <div className="flex flex-wrap gap-2">
-          {roles.map((r) => (
+          {ROLES.map((r) => (
             <button
               key={r}
               onClick={() => setFilterRole(r)}
@@ -155,7 +160,7 @@ export default function Users() {
 
       {/* Summary */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {roles.slice(1).map((r) => (
+        {ROLES.slice(1).map((r) => (
           <div key={r} className="rounded-lg bg-white p-3 shadow-sm text-center">
             <p className="text-xl font-bold text-gray-800">{users.filter((u) => u.role === r).length}</p>
             <p className="text-xs text-gray-500">{r}s</p>

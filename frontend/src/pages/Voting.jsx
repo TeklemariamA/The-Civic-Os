@@ -1,79 +1,36 @@
-import React, { useState } from 'react';
-
-const initialPolls = [
-  {
-    id: 1,
-    title: 'Community Park Renovation',
-    description: 'Should the city proceed with renovating Riverside Park with new amenities?',
-    closes: 'March 12, 2026',
-    status: 'Open',
-    options: [
-      { label: 'Yes, proceed immediately', votes: 142 },
-      { label: 'Yes, but reduce the budget', votes: 63 },
-      { label: 'No, defer to next year', votes: 38 },
-      { label: 'No, cancel the project', votes: 21 },
-    ],
-    userVote: null,
-  },
-  {
-    id: 2,
-    title: 'Downtown Revitalization Plan',
-    description: 'Which approach should the city take for revitalizing the downtown area?',
-    closes: 'March 15, 2026',
-    status: 'Open',
-    options: [
-      { label: 'Focus on retail and commerce', votes: 88 },
-      { label: 'Prioritize green spaces', votes: 105 },
-      { label: 'Mixed-use development', votes: 134 },
-      { label: 'Historic preservation only', votes: 29 },
-    ],
-    userVote: null,
-  },
-  {
-    id: 3,
-    title: 'School Infrastructure Bond',
-    description: 'Do you support issuing a $50 million bond for school infrastructure improvements?',
-    closes: 'March 20, 2026',
-    status: 'Open',
-    options: [
-      { label: 'Strongly support', votes: 198 },
-      { label: 'Support with conditions', votes: 87 },
-      { label: 'Oppose', votes: 44 },
-      { label: 'Strongly oppose', votes: 12 },
-    ],
-    userVote: null,
-  },
-  {
-    id: 4,
-    title: 'Transportation Budget 2025',
-    description: 'Should the transportation budget be increased by 15% for 2026?',
-    closes: 'Feb 28, 2026',
-    status: 'Closed',
-    options: [
-      { label: 'Yes', votes: 95 },
-      { label: 'No', votes: 130 },
-    ],
-    userVote: 0,
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { api } from '../api';
 
 export default function Voting() {
-  const [polls, setPolls] = useState(initialPolls);
-  const [activeTab, setActiveTab] = useState('Open');
+  const [polls,      setPolls]      = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [activeTab,  setActiveTab]  = useState('Open');
+  // Track which option the current user voted on, keyed by poll id
+  const [userVotes,  setUserVotes]  = useState({});
+
+  useEffect(() => {
+    api.getPolls()
+      .then(setPolls)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = polls.filter((p) => p.status === activeTab);
 
-  const castVote = (pollId, optionIndex) => {
-    setPolls((prev) =>
-      prev.map((p) => {
-        if (p.id !== pollId || p.userVote !== null || p.status === 'Closed') return p;
-        const updatedOptions = p.options.map((o, i) =>
-          i === optionIndex ? { ...o, votes: o.votes + 1 } : o
-        );
-        return { ...p, options: updatedOptions, userVote: optionIndex };
-      })
-    );
+  const castVote = async (pollId, optionIndex) => {
+    if (userVotes[pollId] !== undefined) return; // already voted
+    try {
+      const updated = await api.castVote(pollId, optionIndex);
+      setPolls((prev) => prev.map((p) => (p.id === pollId ? updated : p)));
+      setUserVotes((prev) => ({ ...prev, [pollId]: optionIndex }));
+    } catch (err) {
+      alert(`Vote failed: ${err.message}`);
+    }
   };
+
+  if (loading) return <div role="status" className="text-gray-500 py-8 text-center">Loading polls…</div>;
+  if (error)   return <div role="alert" className="text-red-500 py-8 text-center">Error: {error}</div>;
 
   return (
     <div>
@@ -105,8 +62,9 @@ export default function Voting() {
       <div className="space-y-6">
         {filtered.map((poll) => {
           const totalVotes = poll.options.reduce((sum, o) => sum + o.votes, 0);
-          const hasVoted = poll.userVote !== null;
-          const isClosed = poll.status === 'Closed';
+          const userVote   = userVotes[poll.id] ?? null;
+          const hasVoted   = userVote !== null;
+          const isClosed   = poll.status === 'Closed';
 
           return (
             <div key={poll.id} className="rounded-xl bg-white p-6 shadow-sm">
@@ -127,8 +85,8 @@ export default function Voting() {
 
               <div className="space-y-3">
                 {poll.options.map((option, i) => {
-                  const pct = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
-                  const isSelected = poll.userVote === i;
+                  const pct        = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
+                  const isSelected = userVote === i;
 
                   return (
                     <div key={i}>

@@ -1,104 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../api';
 
 const STATUS_COLORS = {
-  Active: 'bg-green-100 text-green-800',
-  Draft: 'bg-gray-100 text-gray-700',
-  Passed: 'bg-blue-100 text-blue-800',
-  Rejected: 'bg-red-100 text-red-700',
+  Active:         'bg-green-100 text-green-800',
+  Draft:          'bg-gray-100 text-gray-700',
+  Passed:         'bg-blue-100 text-blue-800',
+  Rejected:       'bg-red-100 text-red-700',
   'Under Review': 'bg-yellow-100 text-yellow-800',
 };
 
-const initialProposals = [
-  {
-    id: 1,
-    title: 'Green Energy Initiative',
-    category: 'Environment',
-    status: 'Active',
-    author: 'Jane Cooper',
-    date: 'Mar 5, 2026',
-    description: 'Transition all municipal buildings to renewable energy sources by 2028.',
-    votes: { yes: 142, no: 38 },
-  },
-  {
-    id: 2,
-    title: 'Community Park Renovation',
-    category: 'Infrastructure',
-    status: 'Active',
-    author: 'Tom Harris',
-    date: 'Mar 3, 2026',
-    description: 'Renovate Riverside Park with new playground equipment, walking paths, and lighting.',
-    votes: { yes: 205, no: 21 },
-  },
-  {
-    id: 3,
-    title: 'Public Library Expansion',
-    category: 'Education',
-    status: 'Passed',
-    author: 'Linda Park',
-    date: 'Feb 18, 2026',
-    description: 'Expand the downtown library with a new wing dedicated to digital resources and youth programs.',
-    votes: { yes: 310, no: 62 },
-  },
-  {
-    id: 4,
-    title: 'Downtown Revitalization Plan',
-    category: 'Urban Development',
-    status: 'Under Review',
-    author: 'Mark Spencer',
-    date: 'Mar 1, 2026',
-    description: 'Redevelop the downtown core to attract businesses and improve pedestrian accessibility.',
-    votes: { yes: 88, no: 44 },
-  },
-  {
-    id: 5,
-    title: 'Transportation Budget 2026',
-    category: 'Transportation',
-    status: 'Rejected',
-    author: 'Rachel Nguyen',
-    date: 'Feb 10, 2026',
-    description: 'Allocate additional budget for road maintenance and public transit improvements.',
-    votes: { yes: 95, no: 130 },
-  },
-  {
-    id: 6,
-    title: 'School Safety Cameras',
-    category: 'Education',
-    status: 'Draft',
-    author: 'Carlos Rivera',
-    date: 'Mar 7, 2026',
-    description: 'Install updated security camera systems across all public schools.',
-    votes: { yes: 0, no: 0 },
-  },
-];
+const CATEGORIES = ['Environment', 'Infrastructure', 'Education', 'Urban Development', 'Transportation', 'Public Safety', 'Other'];
+const STATUSES   = ['All', 'Active', 'Draft', 'Under Review', 'Passed', 'Rejected'];
 
 export default function Proposals() {
-  const [proposals, setProposals] = useState(initialProposals);
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: '', category: '', description: '' });
+  const [proposals,     setProposals]     = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState(null);
+  const [filterStatus,  setFilterStatus]  = useState('All');
+  const [showForm,      setShowForm]      = useState(false);
+  const [form,          setForm]          = useState({ title: '', category: '', description: '' });
+  const [submitting,    setSubmitting]    = useState(false);
 
-  const statuses = ['All', 'Active', 'Draft', 'Under Review', 'Passed', 'Rejected'];
-  const categories = ['Environment', 'Infrastructure', 'Education', 'Urban Development', 'Transportation', 'Public Safety', 'Other'];
+  useEffect(() => {
+    api.getProposals()
+      .then(setProposals)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const filtered = filterStatus === 'All' ? proposals : proposals.filter((p) => p.status === filterStatus);
+  const filtered = filterStatus === 'All'
+    ? proposals
+    : proposals.filter((p) => p.status === filterStatus);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title.trim() || !form.category || !form.description.trim()) return;
-    const newProposal = {
-      id: proposals.length + 1,
-      title: form.title,
-      category: form.category,
-      status: 'Draft',
-      author: 'Civic User',
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      description: form.description,
-      votes: { yes: 0, no: 0 },
-    };
-    setProposals([newProposal, ...proposals]);
-    setForm({ title: '', category: '', description: '' });
-    setShowForm(false);
+    setSubmitting(true);
+    try {
+      const created = await api.createProposal(form);
+      setProposals([created, ...proposals]);
+      setForm({ title: '', category: '', description: '' });
+      setShowForm(false);
+    } catch (err) {
+      alert(`Failed to submit proposal: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  if (loading) return <div role="status" className="text-gray-500 py-8 text-center">Loading proposals…</div>;
+  if (error)   return <div role="alert" className="text-red-500 py-8 text-center">Error: {error}</div>;
 
   return (
     <div>
@@ -143,7 +94,7 @@ export default function Proposals() {
                   required
                 >
                   <option value="">Select category</option>
-                  {categories.map((c) => (
+                  {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -153,7 +104,7 @@ export default function Proposals() {
                 <textarea
                   className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   rows={4}
-                  placeholder="Describe your proposal..."
+                  placeholder="Describe your proposal…"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   required
@@ -164,14 +115,16 @@ export default function Proposals() {
                   type="button"
                   onClick={() => { setShowForm(false); setForm({ title: '', category: '', description: '' }); }}
                   className="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                  disabled={submitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                  disabled={submitting}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
                 >
-                  Submit Proposal
+                  {submitting ? 'Submitting…' : 'Submit Proposal'}
                 </button>
               </div>
             </form>
@@ -181,7 +134,7 @@ export default function Proposals() {
 
       {/* Status Filter */}
       <div className="mb-5 flex flex-wrap gap-2">
-        {statuses.map((s) => (
+        {STATUSES.map((s) => (
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
@@ -199,7 +152,7 @@ export default function Proposals() {
       {/* Proposals List */}
       <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
         {filtered.map((p) => {
-          const total = p.votes.yes + p.votes.no;
+          const total      = p.votes.yes + p.votes.no;
           const yesPercent = total > 0 ? Math.round((p.votes.yes / total) * 100) : 0;
           return (
             <div key={p.id} className="rounded-xl bg-white p-5 shadow-sm">
