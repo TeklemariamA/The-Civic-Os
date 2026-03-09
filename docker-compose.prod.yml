@@ -6,26 +6,26 @@
 # ── FIRST-TIME SETUP (run once on the server) ──────────────────────────────────
 #
 # Step 1 – Point the domain's A record to this server's public IP and wait
-#   for DNS propagation (usually a few minutes).
+#   for DNS propagation (usually a few minutes):
+#   dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return your IP
 #
-# Step 2 – Pull the latest image:
+# Step 2 – Pull the latest image and start the stack (HTTP-only initially):
 #   docker compose -f docker-compose.prod.yml pull
-#
-# Step 3 – Start the stack in HTTP-only mode (port 80 only, no SSL yet).
-#   The built-in nginx/default.conf is used at this stage:
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Step 4 – Obtain the Let's Encrypt certificate via the webroot method:
+# Step 3 – Obtain the Let's Encrypt certificate via the webroot method:
 #   docker compose -f docker-compose.prod.yml exec certbot certbot certonly \
 #     --webroot --webroot-path /var/www/certbot \
 #     -d civic-os-opensourcism.cloud \
 #     -d www.civic-os-opensourcism.cloud \
 #     --email your@email.com --agree-tos --no-eff-email
 #
-# Step 5 – Enable HTTPS by mounting nginx/prod.conf.
-#   Edit this file and uncomment the two volume lines in the `frontend` service
-#   that reference prod.conf and letsencrypt, then restart:
+# Step 4 – Restart the frontend container to activate HTTPS:
 #   docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
+#
+#   The container's entrypoint detects the new certificate and automatically
+#   switches nginx from HTTP-only mode to full HTTPS (prod.conf).
+#   No manual file editing is required.
 #
 # ── SUBSEQUENT UPDATES ─────────────────────────────────────────────────────────
 #   docker compose -f docker-compose.prod.yml pull
@@ -41,10 +41,12 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      # ── Uncomment AFTER running certbot for the first time (Step 4 above): ──
-      # - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
-      # - letsencrypt:/etc/letsencrypt:ro
-      # ─────────────────────────────────────────────────────────────────────────
+      # Let's Encrypt certificates.
+      # The container entrypoint checks for the certificate at startup and
+      # automatically activates the HTTPS nginx config (prod.conf) when found.
+      # Mount this volume from day 1 — it is empty until certbot runs, and
+      # nginx runs in HTTP-only mode until the cert appears.
+      - letsencrypt:/etc/letsencrypt:ro
       # Shared web-root for ACME challenges (certbot writes; nginx reads).
       - certbot-webroot:/var/www/certbot:ro
     depends_on:

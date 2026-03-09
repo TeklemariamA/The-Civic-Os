@@ -168,12 +168,28 @@ automatically:
 3. Let's Encrypt's servers fetch the token to confirm you control the domain.
 4. Let's Encrypt issues a 90-day certificate — this takes **< 30 seconds** once DNS is propagated.
 
-After the first certificate is issued:
+After the first certificate is issued, restart the frontend container to activate HTTPS:
 
-- Uncomment the two volume lines in `docker-compose.prod.yml` (the lines
-  referencing `./nginx/prod.conf` and `letsencrypt` under the `frontend` service).
-- Restart the frontend container to load `nginx/prod.conf` (which enables HTTPS on port 443 and the HTTP → HTTPS redirect).
-- The `certbot` sidecar checks for renewal every **12 hours** and renews automatically when fewer than 30 days remain. **No manual action is ever required for renewals.**
+```bash
+docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
+```
+
+The container's entrypoint script detects the new certificate file at
+`/etc/letsencrypt/live/civic-os-opensourcism.cloud/fullchain.pem` and
+automatically switches nginx from HTTP-only mode (`default.conf`) to full
+HTTPS (`prod.conf`). **No manual file editing is required.**
+
+The `certbot` sidecar checks for renewal every **12 hours** and renews automatically
+when fewer than 30 days remain. **No manual action is ever required for renewals.**
+
+> **How auto-detection works:** The Dockerfile bakes `nginx/prod.conf` into the
+> image as `/etc/nginx/conf.d/prod.conf.available`. At container start the
+> entrypoint script `/docker-entrypoint.d/10-select-ssl-config.sh` checks
+> whether the Let's Encrypt certificate file exists. If it does, the script
+> copies `prod.conf.available` over `default.conf` so nginx starts with HTTPS
+> support. If the cert is missing, the script leaves `default.conf` in place
+> (HTTP-only, with a graceful TLS rejection on port 443 to prevent
+> `ERR_SSL_PROTOCOL_ERROR`).
 
 ---
 
@@ -259,18 +275,18 @@ dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return your IP
 # 3. Pull the latest image from GHCR
 docker compose -f docker-compose.prod.yml pull
 
-# 4. Start the stack in HTTP-only mode (needed for the ACME challenge)
+# 4. Start the stack (HTTP-only at first; nginx auto-detects certs at startup)
 docker compose -f docker-compose.prod.yml up -d
 
-# 5. Issue the Let's Encrypt certificate (takes < 30 s)
+# 5. Issue the Let's Encrypt certificate (takes < 30 s once DNS is propagated)
 docker compose -f docker-compose.prod.yml exec certbot certbot certonly \
   --webroot --webroot-path /var/www/certbot \
   -d civic-os-opensourcism.cloud \
   -d www.civic-os-opensourcism.cloud \
   --email your@email.com --agree-tos --no-eff-email
 
-# 6. Enable HTTPS: edit docker-compose.prod.yml and uncomment the two volume
-#    lines that reference nginx/prod.conf and letsencrypt, then restart:
+# 6. Restart the frontend container — the entrypoint detects the new cert and
+#    activates HTTPS automatically (no file editing needed):
 docker compose -f docker-compose.prod.yml up -d --force-recreate frontend
 
 # ── The app is now live at https://civic-os-opensourcism.cloud ──────────────
@@ -304,7 +320,7 @@ digest has changed.
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
 | Browser shows "This site can't be reached" | DNS not yet propagated | Wait, check with `dig @8.8.8.8` |
-| Browser shows an SSL/TLS error | Certificate not issued yet or `prod.conf` not mounted | Re-run the certbot step; confirm the volume lines are uncommented |
+| Browser shows an SSL/TLS error | Certificate not yet issued, or container not restarted after cert issuance | Re-run the certbot step; then `docker compose -f docker-compose.prod.yml up -d --force-recreate frontend` to trigger the auto-detection |
 | Browser gets an HTTP 502 | The backend container is not running | `docker compose -f docker-compose.prod.yml ps` — restart backend |
 | Old code still showing after a deployment | Browser or CDN cache | Hard-refresh (`Ctrl + Shift + R`); confirm `docker compose pull` ran |
 | `certbot certonly` fails with "DNS problem" | A record not propagated yet when certbot ran | Wait for propagation, then run the certbot command again |

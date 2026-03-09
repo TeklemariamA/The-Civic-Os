@@ -26,15 +26,30 @@ FROM nginx:1.27-alpine
 # Copy the compiled static assets from the build stage.
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy the nginx site configuration.
-# nginx/default.conf enables SPA routing, gzip, security headers, and HTTPS.
-# For local development (docker-compose.yml) the container is accessed via
-# http://localhost:8080 which is perfectly fine with this config.
-# For production (docker-compose.prod.yml) port 80 and 443 are exposed and
-# SSL certificates are mounted from the host by the certbot service.
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+# ── nginx configuration ────────────────────────────────────────────────────────
+#
+# default.conf  – active config baked into the image.
+#   • Serves the React SPA over plain HTTP (port 80).
+#   • Handles Let's Encrypt ACME challenges (/.well-known/acme-challenge/).
+#   • Gracefully rejects HTTPS on port 443 before certs exist
+#     (ssl_reject_handshake on) — prevents ERR_SSL_PROTOCOL_ERROR.
+#
+# prod.conf.available  – stored in the image but NOT auto-loaded by nginx
+#   (nginx only includes *.conf files).  The entrypoint hook below copies it
+#   over default.conf at container start when Let's Encrypt certs are present.
+COPY nginx/default.conf          /etc/nginx/conf.d/default.conf
+COPY nginx/prod.conf             /etc/nginx/conf.d/prod.conf.available
 
-# Validate the nginx configuration before starting (fails fast on typos).
+# ── Entrypoint hook ────────────────────────────────────────────────────────────
+# The official nginx image runs every *.sh file in /docker-entrypoint.d/ (in
+# alphabetical order) before starting nginx.  This hook auto-selects the right
+# nginx configuration based on whether Let's Encrypt cert files are present.
+COPY docker/entrypoint.d/10-select-ssl-config.sh \
+     /docker-entrypoint.d/10-select-ssl-config.sh
+RUN chmod +x /docker-entrypoint.d/10-select-ssl-config.sh
+
+# Validate the default configuration (prod.conf.available is skipped because
+# it doesn't match the *.conf glob nginx includes at startup).
 RUN nginx -t
 
 EXPOSE 80 443
