@@ -1,46 +1,96 @@
-# LLM Chatbot
+# Civic OS
 
-The LLM Chatbot example demonstrates how an ICP smart contract can be used to interact with a large language model (LLM) to generate text. The user can input a prompt, and the smart contract will use the LLM to generate a response.
-The response is then returned to the user, and the user can submit some follow-up prompts to continue the conversation.
+Civic OS is a civic engagement platform built on the [Internet Computer (ICP)](https://internetcomputer.org/). It provides a full-featured multi-page web application for managing proposals, voting, and community users.
 
-## Deploying from ICP Ninja
+## Features
 
-When viewing this project in ICP Ninja, you can deploy it directly to the mainnet for free by clicking "Run" in the upper right corner. Open this project in ICP Ninja:
+- **Dashboard** – activity overview, upcoming votes, and platform stats
+- **Proposals** – submit, filter, and track civic proposals
+- **Voting** – cast votes on open polls and view results
+- **Users** – manage community members and their roles
 
-[![](https://icp.ninja/assets/open.svg)](https://icp.ninja/i?g=https://github.com/TeklemariamA/The-Civic-Os)
+---
 
-## Build and deploy from the command-line
+## Running with Docker
 
-### 1. [Download and install the IC SDK.](https://internetcomputer.org/docs/building-apps/getting-started/install)
+The easiest way to run Civic OS locally is with Docker. No ICP or Node.js tooling is required.
 
-### 2. Setting up Ollama
+### Prerequisites
 
-To be able to test the agent locally, you'll need a server for processing the agent's prompts. For that, we'll use `ollama`, which is a tool that can download and serve LLMs.
-See the documentation on the [Ollama website](https://ollama.com/) to install it. Once it's installed, run:
+- [Docker](https://docs.docker.com/engine/install/) installed and running
 
-```
-ollama serve
-# Expected to start listening on port 11434
-```
+### Start the app
 
-The above command will start the Ollama server, so that it can process requests by the agent. Additionally, and in a separate window, run the following command to download the LLM that will be used by the agent:
-
-```
-ollama run llama3.1:8b
+```bash
+docker compose up --build
 ```
 
-The above command will download an 8B parameter model, which is around 4GiB. Once the command executes and the model is loaded, you can terminate it. You won't need to do this step again.
+Then open **http://localhost:8080** in your browser.
 
-### 3. Download your project from ICP Ninja using the 'Download files' button on the upper left corner, or [clone the GitHub examples repository.](https://github.com/dfinity/examples/)
+> The `--build` flag rebuilds the image from the latest source code every time. Omit it on subsequent runs if you have not changed any files.
 
-### 4. Navigate into the project's directory.
+### Stop the app
 
-### 5. Deploy the project to your local environment:
-
-```
-dfx start --background --clean && dfx deploy
+```bash
+docker compose down
 ```
 
-## Security considerations and best practices
+### Pulling the latest published image
 
-If you base your application on this example, it is recommended that you familiarize yourself with and adhere to the [security best practices](https://internetcomputer.org/docs/building-apps/security/overview) for developing on ICP. This example may not implement all the best practices.
+After every push to `main`, GitHub Actions automatically builds and publishes the image to the GitHub Container Registry. Pull the latest image with:
+
+```bash
+docker pull ghcr.io/teklemariama/the-civic-os:latest
+docker run -p 8080:80 ghcr.io/teklemariama/the-civic-os:latest
+```
+
+---
+
+## Local development (without Docker)
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/en/download/package-manager)
+- [dfx](https://internetcomputer.org/docs/building-apps/getting-started/install) (ICP SDK)
+- [Mops](https://docs.mops.one/quick-start#2-install-mops-cli) – Motoko package manager
+
+### Setup & run
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Start the local ICP replica in the background
+dfx start --background
+
+# 3. Deploy canisters locally and generate type declarations
+dfx deploy
+
+# 4. Start the Vite dev server
+npm run dev -w frontend
+```
+
+The app will be available at **http://127.0.0.1:5173**.
+
+---
+
+## Dev Container (VS Code)
+
+For a fully pre-configured development environment, install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) and [Docker](https://docs.docker.com/engine/install/), then run:
+
+```
+Dev Containers: Reopen in Container
+```
+
+from the VS Code command palette. `npm install` runs automatically when the container starts.
+
+---
+
+## Deploying to ICP mainnet
+
+```bash
+dfx deploy --network ic
+```
+
+See [BUILD.md](BUILD.md) for full instructions including obtaining cycles.
+
