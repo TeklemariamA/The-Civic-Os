@@ -43,4 +43,33 @@ export const api = {
   getUsers: () => request('/users'),
   toggleUser: (userId) =>
     request(`/users/${userId}/toggle`, { method: 'POST' }),
+
+  // ── Bounties ─────────────────────────────────────────────────────────────
+  getBounties: () => request('/bounties'),
+  createBounty: (data) =>
+    request('/bounties', { method: 'POST', body: JSON.stringify(data) }),
+  claimBounty: (bountyId, claimer = 'Civic User') =>
+    request(`/bounties/${bountyId}/claim?claimer=${encodeURIComponent(claimer)}`, { method: 'POST' }),
+
+  // ── ZK-Audit ─────────────────────────────────────────────────────────────
+  getAuditLog: () => request('/audit/log'),
+  submitZKProof: (data) =>
+    request('/audit/submit', { method: 'POST', body: JSON.stringify(data) }),
+
+  // ── Justice ──────────────────────────────────────────────────────────────
+  getCases: () => request('/justice/cases'),
+  fileCase: (data) =>
+    request('/justice/cases', { method: 'POST', body: JSON.stringify(data) }),
+  castVerdict: (caseId, data) =>
+    request(`/justice/cases/${caseId}/verdict`, { method: 'POST', body: JSON.stringify(data) }),
+
+  // ── Consent Forms ─────────────────────────────────────────────────────────
+  getConsentForms: () => request('/consent/forms'),
+  signConsent: (formId) =>
+    request(`/consent/forms/${formId}/sign`, { method: 'POST' }),
+
+  // ── Sovereign Identity ────────────────────────────────────────────────────
+  listIdentities: () => request('/identity/list'),
+  issueIdentity: (data) =>
+    request('/identity/issue', { method: 'POST', body: JSON.stringify(data) }),
 };
