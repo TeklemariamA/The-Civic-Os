@@ -186,10 +186,12 @@ when fewer than 30 days remain. **No manual action is ever required for renewals
 > image as `/etc/nginx/conf.d/prod.conf.available`. At container start the
 > entrypoint script `/docker-entrypoint.d/10-select-ssl-config.sh` checks
 > whether the Let's Encrypt certificate file exists. If it does, the script
-> copies `prod.conf.available` over `default.conf` so nginx starts with HTTPS
-> support. If the cert is missing, the script leaves `default.conf` in place
-> (HTTP-only, with a graceful TLS rejection on port 443 to prevent
-> `ERR_SSL_PROTOCOL_ERROR`).
+> copies `prod.conf.available` over `default.conf` so nginx starts with a
+> valid, browser-trusted certificate. If the cert is missing, the script
+> leaves `default.conf` in place, which serves the app on port 443 using a
+> self-signed certificate baked into the Docker image — the TLS handshake
+> always completes (preventing `ERR_SSL_PROTOCOL_ERROR`), though browsers
+> will show a "not private" warning until the Let's Encrypt cert is issued.
 
 ---
 

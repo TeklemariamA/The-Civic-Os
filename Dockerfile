@@ -28,17 +28,41 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # ── nginx configuration ────────────────────────────────────────────────────────
 #
-# default.conf  – active config baked into the image.
-#   • Serves the React SPA over plain HTTP (port 80).
+# default.conf         – active config baked into the image.
+#   • Serves the React SPA over HTTP (port 80) and HTTPS (port 443).
+#   • Port 443 uses a self-signed certificate generated at build time so that
+#     the TLS handshake completes immediately — no ERR_SSL_PROTOCOL_ERROR even
+#     before Let's Encrypt certificates are provisioned.
 #   • Handles Let's Encrypt ACME challenges (/.well-known/acme-challenge/).
-#   • Gracefully rejects HTTPS on port 443 before certs exist
-#     (ssl_reject_handshake on) — prevents ERR_SSL_PROTOCOL_ERROR.
 #
 # prod.conf.available  – stored in the image but NOT auto-loaded by nginx
 #   (nginx only includes *.conf files).  The entrypoint hook below copies it
 #   over default.conf at container start when Let's Encrypt certs are present.
 COPY nginx/default.conf          /etc/nginx/conf.d/default.conf
 COPY nginx/prod.conf             /etc/nginx/conf.d/prod.conf.available
+
+# ── Self-signed TLS certificate (fallback before Let's Encrypt) ────────────────
+# Generates a 10-year self-signed certificate baked into the image.
+# Purpose: allows nginx to complete TLS handshakes on port 443 immediately,
+# even before a Let's Encrypt certificate is provisioned.
+#
+# Behaviour by scenario:
+#   • Direct browser access (no proxy): browser shows "Your connection is not
+#     private" (NET::ERR_CERT_AUTHORITY_INVALID) — user can click "Advanced →
+#     Proceed".  This is acceptable during the initial setup period.
+#   • Cloudflare "Full" SSL mode: works without warnings — Cloudflare connects
+#     to the origin with TLS and does not validate the origin certificate.
+#   • Cloudflare "Full (Strict)": requires a valid cert; use the Let's Encrypt
+#     certificate (Step 3 of deployment) to satisfy this mode.
+#
+# openssl is available in nginx:1.27-alpine; we install nothing extra.
+RUN mkdir -p /etc/nginx/ssl \
+ && openssl req -x509 -nodes -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/self-signed.key \
+        -out    /etc/nginx/ssl/self-signed.crt \
+        -days   3650 \
+        -subj   "/CN=civic-os-opensourcism.cloud" \
+ && chmod 600 /etc/nginx/ssl/self-signed.key
 
 # ── Entrypoint hook ────────────────────────────────────────────────────────────
 # The official nginx image runs every *.sh file in /docker-entrypoint.d/ (in

@@ -7,10 +7,16 @@
 #
 # Behaviour
 # ---------
-#   • Let's Encrypt certificate present  → activates prod.conf (HTTPS + HTTP
-#     redirect), replacing default.conf in /etc/nginx/conf.d/.
-#   • No certificate yet                 → keeps default.conf (HTTP-only with
-#     ACME-challenge support and a graceful ssl_reject_handshake on port 443).
+#   • Let's Encrypt certificate present  → activates prod.conf (HTTPS with
+#     valid LE cert + HTTP-to-HTTPS redirect), replacing default.conf.
+#   • No certificate yet                 → keeps default.conf (serves the app
+#     on port 80 over HTTP and on port 443 over HTTPS with a self-signed
+#     certificate baked into the Docker image).
+#
+#     The self-signed certificate ensures the TLS handshake always completes,
+#     preventing ERR_SSL_PROTOCOL_ERROR.  Direct browser connections will show
+#     a "Your connection is not private" warning (users can click through);
+#     Cloudflare "Full" SSL mode will work silently.
 #
 # No manual editing of docker-compose.prod.yml is required.  After certbot
 # issues the certificate, restart the frontend container:
@@ -32,6 +38,6 @@ if [ -f "${CERT_FILE}" ]; then
     echo "[civic-os] TLS certificate found for ${DOMAIN} — activating HTTPS config (prod.conf)"
     cp "${PROD_CONF}" "${ACTIVE_CONF}"
 else
-    echo "[civic-os] No TLS certificate yet — running in HTTP-only mode (ACME challenges served on port 80)"
-    echo "[civic-os] Run certbot, then restart this container to enable HTTPS automatically."
+    echo "[civic-os] No Let's Encrypt certificate yet — serving app with self-signed certificate"
+    echo "[civic-os] Run certbot, then restart this container to activate the trusted certificate."
 fi
