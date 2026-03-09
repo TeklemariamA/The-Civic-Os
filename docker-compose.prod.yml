@@ -3,11 +3,14 @@
 # Deploys the app at https://civic-os-opensourcism.cloud with automatic
 # Let's Encrypt TLS certificates via certbot.
 #
+# Server: Hostinger KVM 1 VPS — IP 72.61.96.166
+#
 # ── FIRST-TIME SETUP (run once on the server) ──────────────────────────────────
 #
-# Step 1 – Point the domain's A record to this server's public IP and wait
-#   for DNS propagation (usually a few minutes):
-#   dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return your IP
+# Step 1 – Ensure the domain's A record points to 72.61.96.166 (set in Hostinger
+#   hPanel → Domains → civic-os-opensourcism.cloud → DNS / Nameservers), then
+#   verify propagation:
+#   dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return 72.61.96.166
 #
 # Step 2 – Pull the latest image and start the stack (HTTP-only initially):
 #   docker compose -f docker-compose.prod.yml pull

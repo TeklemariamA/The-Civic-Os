@@ -107,15 +107,25 @@ starts serving the new build within a few seconds of the restart.
 The **Domain Name System (DNS)** maps human-readable names like
 `civic-os-opensourcism.cloud` to the IP address of the server that hosts the app.
 Before anyone on the internet can reach the app you must create a DNS **A record**
-at your domain registrar:
+at your domain registrar.
+
+**Server:** Hostinger KVM 1 VPS — public IP `72.61.96.166`
 
 | Record type | Name | Value |
 |-------------|------|-------|
-| `A` | `civic-os-opensourcism.cloud` | `<your server's public IP>` |
-| `A` | `www.civic-os-opensourcism.cloud` | `<your server's public IP>` |
+| `A` | `civic-os-opensourcism.cloud` | `72.61.96.166` |
+| `A` | `www.civic-os-opensourcism.cloud` | `72.61.96.166` |
 
-Replace `<your server's public IP>` with the actual IPv4 address of your VPS. You
-can find it with `curl -s https://ifconfig.me` on the server.
+> **Where to set these records:** Log in to [hpanel.hostinger.com](https://hpanel.hostinger.com),
+> open **Domains → civic-os-opensourcism.cloud → DNS / Nameservers**, and add (or
+> update) the two A records above.  If you are using Hostinger's nameservers, make
+> the change in the Hostinger DNS editor; if you have delegated nameservers to
+> another provider (e.g. Cloudflare), make the change there instead.
+
+The `docker-compose.prod.yml` file does **not** embed an IP address — it uses the
+domain name `civic-os-opensourcism.cloud`.  nginx binds to all interfaces on the
+VPS (`0.0.0.0:80` / `0.0.0.0:443`), so the A records above are the only place the
+IP needs to be configured.
 
 ### What is domain propagation?
 
@@ -211,7 +221,7 @@ dig @8.8.8.8 civic-os-opensourcism.cloud A | grep -A2 "ANSWER SECTION"
 
 Expected output once propagated:
 ```
-203.0.113.42          ← your server's public IP
+72.61.96.166
 ```
 
 ### Online tools
@@ -265,14 +275,14 @@ openssl s_client -connect civic-os-opensourcism.cloud:443 -servername civic-os-o
 ## First-time production deployment (step-by-step)
 
 ```bash
-# ── On your server ──────────────────────────────────────────────────────────
+# ── On your Hostinger KVM 1 VPS (IP: 72.61.96.166) ─────────────────────────
 
 # 1. Clone the repo
 git clone https://github.com/TeklemariamA/The-Civic-Os.git
 cd The-Civic-Os
 
-# 2. Set your server's A record at your registrar, then verify propagation:
-dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return your IP
+# 2. Verify DNS A record points to 72.61.96.166 (set in Hostinger hPanel → DNS):
+dig @8.8.8.8 civic-os-opensourcism.cloud A +short   # should return 72.61.96.166
 
 # 3. Pull the latest image from GHCR
 docker compose -f docker-compose.prod.yml pull
@@ -321,12 +331,13 @@ digest has changed.
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
-| Browser shows "This site can't be reached" | DNS not yet propagated | Wait, check with `dig @8.8.8.8` |
-| Browser shows an SSL/TLS error | Certificate not yet issued, or container not restarted after cert issuance | Re-run the certbot step; then `docker compose -f docker-compose.prod.yml up -d --force-recreate frontend` to trigger the auto-detection |
+| Browser shows "This site can't be reached" | DNS not yet propagated (A record must point to `72.61.96.166`) | Check in Hostinger hPanel → Domains → DNS; verify with `dig @8.8.8.8 civic-os-opensourcism.cloud A +short` — should return `72.61.96.166` |
+| Browser shows `ERR_SSL_PROTOCOL_ERROR` | Container not running, or old image without TLS fallback | Pull latest image: `docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d --force-recreate frontend` |
+| Browser shows an SSL/TLS warning (self-signed) | Let's Encrypt cert not yet issued | Run the certbot step; then `docker compose -f docker-compose.prod.yml up -d --force-recreate frontend` to activate the trusted cert |
 | Browser gets an HTTP 502 | The backend container is not running | `docker compose -f docker-compose.prod.yml ps` — restart backend |
 | Old code still showing after a deployment | Browser or CDN cache | Hard-refresh (`Ctrl + Shift + R`); confirm `docker compose pull` ran |
-| `certbot certonly` fails with "DNS problem" | A record not propagated yet when certbot ran | Wait for propagation, then run the certbot command again |
-| Port 80/443 not reachable | Firewall blocking | Open ports: `ufw allow 80/tcp && ufw allow 443/tcp && ufw reload` |
+| `certbot certonly` fails with "DNS problem" | A record not propagated yet when certbot ran | Wait for propagation (`dig @8.8.8.8 civic-os-opensourcism.cloud A +short` returns `72.61.96.166`), then retry |
+| Port 80/443 not reachable | Firewall blocking on VPS | `ufw allow 80/tcp && ufw allow 443/tcp && ufw reload` |
 | `docker compose pull` shows "manifest unknown" | Image not yet pushed (CI still building) | Check workflow status at https://github.com/TeklemariamA/The-Civic-Os/actions and wait for it to finish |
 
 ---
